@@ -132,6 +132,51 @@
     flex: 0 0 auto;
   }
   .theme-toggle:active { background: var(--bg-3); }
+  .topline-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+  .sections-toggle {
+    height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .sections-toggle:active { background: var(--bg-3); }
+  .sections-toggle[aria-expanded="true"] {
+    background: var(--primary);
+    color: var(--bg);
+    border-color: var(--primary);
+  }
+  .sections-caret {
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: transform 0.25s ease;
+  }
+  .sections-toggle[aria-expanded="true"] .sections-caret { transform: rotate(180deg); }
+
+  /* grid-row trick: collapses jump-row to zero height with no fixed value */
+  .jump-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s ease;
+  }
+  .jump-collapse.open { grid-template-rows: 1fr; }
+  .jump-collapse-inner { overflow: hidden; min-height: 0; }
+
   .progress-row {
     display: flex; justify-content: center; gap: 8px;
     padding: 0.1rem 0 0.5rem 0;
@@ -188,45 +233,6 @@
     margin: 0.4rem 0 1.1rem 0;
     border-radius: 0 8px 8px 0;
   }
-
-  /* ───────── collapsible details toggle ───────── */
-  .details-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.55rem;
-    width: 100%;
-    min-height: 48px;
-    margin: 0 0 0.2rem 0;
-    padding: 0.5rem 1rem;
-    font-size: 1.0rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--bg-2);
-    color: var(--text);
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .details-toggle:active { filter: brightness(0.92); }
-  .details-caret {
-    color: var(--primary);
-    font-size: 1.05rem;
-    line-height: 1;
-    transition: transform 0.25s ease;
-  }
-  .details-toggle[aria-expanded="true"] .details-caret { transform: rotate(180deg); }
-
-  /* grid-row trick: animates to content height with no fixed value needed */
-  .lines-collapse {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 0.28s ease;
-  }
-  .lines-collapse.open { grid-template-rows: 1fr; }
-  .lines-inner { overflow: hidden; min-height: 0; }
-
   .line {
     font-size: 1.18rem;
     line-height: 1.45;
@@ -331,8 +337,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .dot { transition: none; }
-    .lines-collapse { transition: none; }
-    .details-caret { transition: none; }
+    .jump-collapse { transition: none; }
+    .sections-caret { transition: none; }
   }
 </style>
 </head>
@@ -341,15 +347,25 @@
     <div class="topbar-inner">
       <div class="topline">
         <div class="beat-time" id="time" aria-live="polite"></div>
-        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark">
-          <span id="theme-icon">☀︎</span>
-        </button>
+        <div class="topline-actions">
+          <button class="sections-toggle" id="sections-toggle" type="button"
+                  aria-expanded="false" aria-controls="jump-collapse">
+            Sections <span class="sections-caret" aria-hidden="true">▾</span>
+          </button>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark">
+            <span id="theme-icon">☀︎</span>
+          </button>
+        </div>
       </div>
       <div class="progress-row" id="dots" role="tablist" aria-label="Beat progress"></div>
-      <div class="jump-row">
-        <button class="jump-btn" id="jump-s" type="button">Strengths</button>
-        <button class="jump-btn" id="jump-w" type="button">Weaknesses</button>
-        <button class="jump-btn" id="jump-l" type="button">Limits</button>
+      <div class="jump-collapse" id="jump-collapse">
+        <div class="jump-collapse-inner">
+          <div class="jump-row">
+            <button class="jump-btn" id="jump-s" type="button">Strengths</button>
+            <button class="jump-btn" id="jump-w" type="button">Weaknesses</button>
+            <button class="jump-btn" id="jump-l" type="button">Limits</button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -357,16 +373,7 @@
   <main class="wrap" role="main">
     <h1 class="beat-title" id="title"></h1>
     <div class="claim" id="claim"></div>
-    <button class="details-toggle" id="details-toggle" type="button"
-            aria-expanded="false" aria-controls="lines-collapse">
-      <span id="details-label">Show details</span>
-      <span class="details-caret" aria-hidden="true">▾</span>
-    </button>
-    <div class="lines-collapse" id="lines-collapse">
-      <div class="lines-inner">
-        <div id="lines"></div>
-      </div>
-    </div>
+    <div id="lines"></div>
     <div class="land" id="land" hidden></div>
     <div class="scope" id="scope"></div>
   </main>
@@ -510,9 +517,6 @@ const timeEl   = el("time");
 const titleEl  = el("title");
 const claimEl  = el("claim");
 const linesEl  = el("lines");
-const detailsToggle = el("details-toggle");
-const detailsLabel  = el("details-label");
-const linesCollapse = el("lines-collapse");
 const landEl   = el("land");
 const scopeEl  = el("scope");
 const countEl  = el("count");
@@ -523,10 +527,12 @@ const jumpW    = el("jump-w");
 const jumpL    = el("jump-l");
 const themeBtn = el("theme-toggle");
 const themeIcn = el("theme-icon");
+const sectionsToggle = el("sections-toggle");
+const jumpCollapse   = el("jump-collapse");
 
 let idx = 0;
 let theme = "dark";
-let detailsOpen = false;   // per-beat; resets to collapsed on navigation
+let sectionsOpen = false;   // jump-row collapsed by default for more reading room
 
 /* ── storage ─────────────────────────────────────── */
 function storeGet(k) {
@@ -541,6 +547,8 @@ function storeSet(k, v) {
   if (!isNaN(savedIdx) && savedIdx >= 0 && savedIdx < BEATS.length) idx = savedIdx;
   const savedTheme = storeGet("vcmv3_theme");
   if (savedTheme === "light" || savedTheme === "dark") theme = savedTheme;
+  const savedSections = storeGet("vcmv3_sections");
+  if (savedSections === "1") sectionsOpen = true;   // default stays collapsed
 })();
 
 /* ── theme ───────────────────────────────────────── */
@@ -557,11 +565,15 @@ function toggleTheme() {
   applyTheme();
 }
 
-/* ── collapsible details ─────────────────────────── */
-function applyDetailsState() {
-  linesCollapse.classList.toggle("open", detailsOpen);
-  detailsToggle.setAttribute("aria-expanded", detailsOpen ? "true" : "false");
-  detailsLabel.textContent = detailsOpen ? "Hide details" : "Show details";
+/* ── sections (jump-row) collapse ────────────────── */
+function applySectionsState() {
+  jumpCollapse.classList.toggle("open", sectionsOpen);
+  sectionsToggle.setAttribute("aria-expanded", sectionsOpen ? "true" : "false");
+}
+function toggleSections() {
+  sectionsOpen = !sectionsOpen;
+  storeSet("vcmv3_sections", sectionsOpen ? "1" : "0");
+  applySectionsState();
 }
 
 /* ── render ──────────────────────────────────────── */
@@ -586,12 +598,6 @@ function render() {
   });
   linesEl.innerHTML = linesHtml;
 
-  // toggle only meaningful when there are bullet lines; reflect current state
-  const hasLines = (beat.lines || []).length > 0;
-  detailsToggle.hidden = !hasLines;
-  linesCollapse.hidden = !hasLines;
-  applyDetailsState();
-
   if (beat.land) {
     landEl.textContent = beat.land;
     landEl.hidden = false;
@@ -615,7 +621,6 @@ function render() {
 
 function goTo(i) {
   idx = Math.max(0, Math.min(BEATS.length - 1, i));
-  detailsOpen = false;   // each beat starts compact
   render();
   window.scrollTo({ top: 0, behavior: "auto" });
 }
@@ -627,10 +632,7 @@ jumpS.addEventListener("click", () => goTo(JUMP_INDEX.strengths));
 jumpW.addEventListener("click", () => goTo(JUMP_INDEX.weaknesses));
 jumpL.addEventListener("click", () => goTo(JUMP_INDEX.limits));
 themeBtn.addEventListener("click", toggleTheme);
-detailsToggle.addEventListener("click", () => {
-  detailsOpen = !detailsOpen;
-  applyDetailsState();
-});
+sectionsToggle.addEventListener("click", toggleSections);
 
 document.addEventListener("keydown", (e) => {
   if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
@@ -643,6 +645,7 @@ document.addEventListener("keydown", (e) => {
 
 /* ── init ────────────────────────────────────────── */
 applyTheme();
+applySectionsState();
 render();
 </script>
 </body>
