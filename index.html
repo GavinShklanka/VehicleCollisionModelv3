@@ -417,9 +417,9 @@ const BEATS = [
     scope: "About: severity given a crash. Not about: predicting whether a crash happens.",
   },
   {
-    id: "strengths",
-    time: "1:00 – 2:30",
-    title: "STRENGTHS — what the audit confirmed V2 got right",
+    id: "strengths1",
+    time: "1:00 – 1:30",
+    title: "STRENGTHS (1/3) — the honest test",
     claim: "V1 set the algorithm. V2 made the test honest.",
     lines: [
       "V1 used XGBoost — gradient-boosted trees, where each tree learns from the last tree's mistakes",
@@ -429,6 +429,15 @@ const BEATS = [
       "V1's random 80/20 split was a multiple-choice test where the answer key leaked into study",
       "V2's temporal split is a written-response exam under harsh conditions",
       "the audit confirmed this — same student, harder test, the score that matters",
+    ],
+    scope: "About: V2's methodology under harder test conditions. Not about: a bigger accuracy number.",
+  },
+  {
+    id: "strengths2",
+    time: "1:30 – 2:00",
+    title: "STRENGTHS (2/3) — the 8 engineered features",
+    claim: "Eight features survived the cut — each one a behavioral story.",
+    lines: [
       "ablation — V2 pulled each of 35 features out, retrained, kept the ones that hurt to remove",
       "the 8 features that survived — each one carries a behavioral story",
       "posted speed (proxy from road class) — faster roads, more energy in the crash",
@@ -439,6 +448,15 @@ const BEATS = [
       "impaired driving flag — alcohol or drug indication at scene",
       "road surface severity — wet, snow, ice ranked by historical severity contribution",
       "any turning movement — turning crashes versus straight-line crashes",
+    ],
+    scope: "About: V2's methodology under harder test conditions. Not about: a bigger accuracy number.",
+  },
+  {
+    id: "strengths3",
+    time: "2:00 – 2:30",
+    title: "STRENGTHS (3/3) — four driving archetypes",
+    claim: "Those eight features describe four kinds of driver.",
+    lines: [
       "these 8 collectively describe four driving archetypes the model recognizes",
       "archetype 1 — the late-night solo run — single vehicle, dusk or dark, often impaired or aggressive",
       "archetype 2 — the bad-weather commuter — multi-vehicle, wet or snow surface, daytime",
@@ -451,16 +469,34 @@ const BEATS = [
     scope: "About: V2's methodology under harder test conditions. Not about: a bigger accuracy number.",
   },
   {
-    id: "weaknesses",
-    time: "2:30 – 3:45",
-    title: "WEAKNESSES — what the audit surfaced",
-    claim: "The audit found six things we got wrong. Name them.",
+    id: "weaknesses1",
+    time: "2:30 – 2:55",
+    title: "WEAKNESSES (1/3) — the bad calls",
+    claim: "Two bad calls the audit named first.",
     lines: [
       "1. the headline +0.0156 improvement over V1 is smaller than the noise — statistically invisible",
       "2. V2 dropped crash type during ablation — rollovers are 58.5% severe, rear-ends 20%",
       "the biggest causal lever in our own data, optimized away — bad call",
+    ],
+    scope: "About: six concrete failures the audit named. Not about: blaming the V2 timeline.",
+  },
+  {
+    id: "weaknesses2",
+    time: "2:55 – 3:20",
+    title: "WEAKNESSES (2/3) — the missing inputs",
+    claim: "Two inputs we promised that weren't there.",
+    lines: [
       "3. V2 promised true posted speeds from the NS Road Network — the audit checked, that field does not exist",
       "4. Environment Canada weather went missing entirely — V1's strongest predictors, gone",
+    ],
+    scope: "About: six concrete failures the audit named. Not about: blaming the V2 timeline.",
+  },
+  {
+    id: "weaknesses3",
+    time: "3:20 – 3:45",
+    title: "WEAKNESSES (3/3) — precision, recall, calibration",
+    claim: "The metrics that aren't deployment-ready yet.",
+    lines: [
       "5. precision and recall at the default threshold — both off the deployment bar",
       "precision 0.288 — of the crashes the model flags as severe, only 29% actually are",
       "plain English — 10 flagged, 3 are real, 7 are false alarms",
@@ -473,17 +509,35 @@ const BEATS = [
     scope: "About: six concrete failures the audit named. Not about: blaming the V2 timeline.",
   },
   {
-    id: "limits",
-    time: "3:45 – 4:30",
-    title: "LIMITATIONS — what the audit said we can't fix with modelling",
-    claim: "Three limits worth naming. Two structural. One we can flag.",
+    id: "limits1",
+    time: "3:45 – 4:00",
+    title: "LIMITATIONS (1/3) — the structural ceiling",
+    claim: "A ceiling the data itself imposes.",
     lines: [
       "structural ceiling — police-reported data caps AUC near 0.65 to 0.70",
       "past that needs telematics speed, on-scene weather, or hospital outcomes",
       "that's a data investment, not a modelling fix",
+    ],
+    scope: "About: bounded scope, named honestly. Not about: framing limits as failure.",
+  },
+  {
+    id: "limits2",
+    time: "4:00 – 4:15",
+    title: "LIMITATIONS (2/3) — rural weather gaps",
+    claim: "Where the weather signal runs out.",
+    lines: [
       "rural weather coverage — Environment Canada stations have a 20 km usable radius",
       "rural Nova Scotia has gaps between stations",
       "a crash 40 km from the nearest station is borrowing weather, not observing it",
+    ],
+    scope: "About: bounded scope, named honestly. Not about: framing limits as failure.",
+  },
+  {
+    id: "limits3",
+    time: "4:15 – 4:30",
+    title: "LIMITATIONS (3/3) — conditional by design",
+    claim: "What the model was never built to answer.",
+    lines: [
       "conditional model — predicts severity given a crash, not whether a crash happens",
     ],
     scope: "About: bounded scope, named honestly. Not about: framing limits as failure.",
@@ -528,7 +582,9 @@ const BEATS = [
   },
 ];
 
-const JUMP_INDEX = { strengths: 2, weaknesses: 3, limits: 4 };
+const JUMP_INDEX = { strengths: 2, weaknesses: 5, limits: 8 };
+// each section spans 3 slides; highlight its button across the whole range
+const JUMP_RANGE = { strengths: [2, 4], weaknesses: [5, 7], limits: [8, 10] };
 
 const el = (id) => document.getElementById(id);
 const dotsEl   = el("dots");
@@ -630,10 +686,11 @@ function render() {
   nextBtn.disabled = idx === BEATS.length - 1;
 
   // jump button active state
+  const inRange = (r) => idx >= r[0] && idx <= r[1];
   [jumpS, jumpW, jumpL].forEach(b => b.removeAttribute("aria-current"));
-  if (idx === JUMP_INDEX.strengths)  jumpS.setAttribute("aria-current", "true");
-  if (idx === JUMP_INDEX.weaknesses) jumpW.setAttribute("aria-current", "true");
-  if (idx === JUMP_INDEX.limits)     jumpL.setAttribute("aria-current", "true");
+  if (inRange(JUMP_RANGE.strengths))  jumpS.setAttribute("aria-current", "true");
+  if (inRange(JUMP_RANGE.weaknesses)) jumpW.setAttribute("aria-current", "true");
+  if (inRange(JUMP_RANGE.limits))     jumpL.setAttribute("aria-current", "true");
 
   storeSet("vcmv3_idx", String(idx));
 }
