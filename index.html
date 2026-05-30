@@ -188,6 +188,45 @@
     margin: 0.4rem 0 1.1rem 0;
     border-radius: 0 8px 8px 0;
   }
+
+  /* ───────── collapsible details toggle ───────── */
+  .details-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    width: 100%;
+    min-height: 48px;
+    margin: 0 0 0.2rem 0;
+    padding: 0.5rem 1rem;
+    font-size: 1.0rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .details-toggle:active { filter: brightness(0.92); }
+  .details-caret {
+    color: var(--primary);
+    font-size: 1.05rem;
+    line-height: 1;
+    transition: transform 0.25s ease;
+  }
+  .details-toggle[aria-expanded="true"] .details-caret { transform: rotate(180deg); }
+
+  /* grid-row trick: animates to content height with no fixed value needed */
+  .lines-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s ease;
+  }
+  .lines-collapse.open { grid-template-rows: 1fr; }
+  .lines-inner { overflow: hidden; min-height: 0; }
+
   .line {
     font-size: 1.18rem;
     line-height: 1.45;
@@ -292,6 +331,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .dot { transition: none; }
+    .lines-collapse { transition: none; }
+    .details-caret { transition: none; }
   }
 </style>
 </head>
@@ -316,7 +357,16 @@
   <main class="wrap" role="main">
     <h1 class="beat-title" id="title"></h1>
     <div class="claim" id="claim"></div>
-    <div id="lines"></div>
+    <button class="details-toggle" id="details-toggle" type="button"
+            aria-expanded="false" aria-controls="lines-collapse">
+      <span id="details-label">Show details</span>
+      <span class="details-caret" aria-hidden="true">▾</span>
+    </button>
+    <div class="lines-collapse" id="lines-collapse">
+      <div class="lines-inner">
+        <div id="lines"></div>
+      </div>
+    </div>
     <div class="land" id="land" hidden></div>
     <div class="scope" id="scope"></div>
   </main>
@@ -460,6 +510,9 @@ const timeEl   = el("time");
 const titleEl  = el("title");
 const claimEl  = el("claim");
 const linesEl  = el("lines");
+const detailsToggle = el("details-toggle");
+const detailsLabel  = el("details-label");
+const linesCollapse = el("lines-collapse");
 const landEl   = el("land");
 const scopeEl  = el("scope");
 const countEl  = el("count");
@@ -473,6 +526,7 @@ const themeIcn = el("theme-icon");
 
 let idx = 0;
 let theme = "dark";
+let detailsOpen = false;   // per-beat; resets to collapsed on navigation
 
 /* ── storage ─────────────────────────────────────── */
 function storeGet(k) {
@@ -503,6 +557,13 @@ function toggleTheme() {
   applyTheme();
 }
 
+/* ── collapsible details ─────────────────────────── */
+function applyDetailsState() {
+  linesCollapse.classList.toggle("open", detailsOpen);
+  detailsToggle.setAttribute("aria-expanded", detailsOpen ? "true" : "false");
+  detailsLabel.textContent = detailsOpen ? "Hide details" : "Show details";
+}
+
 /* ── render ──────────────────────────────────────── */
 function render() {
   const beat = BEATS[idx];
@@ -524,6 +585,12 @@ function render() {
     linesHtml += `<div class="line"><span class="arrow" aria-hidden="true">→</span><span>${safe}</span></div>`;
   });
   linesEl.innerHTML = linesHtml;
+
+  // toggle only meaningful when there are bullet lines; reflect current state
+  const hasLines = (beat.lines || []).length > 0;
+  detailsToggle.hidden = !hasLines;
+  linesCollapse.hidden = !hasLines;
+  applyDetailsState();
 
   if (beat.land) {
     landEl.textContent = beat.land;
@@ -548,6 +615,7 @@ function render() {
 
 function goTo(i) {
   idx = Math.max(0, Math.min(BEATS.length - 1, i));
+  detailsOpen = false;   // each beat starts compact
   render();
   window.scrollTo({ top: 0, behavior: "auto" });
 }
@@ -559,6 +627,10 @@ jumpS.addEventListener("click", () => goTo(JUMP_INDEX.strengths));
 jumpW.addEventListener("click", () => goTo(JUMP_INDEX.weaknesses));
 jumpL.addEventListener("click", () => goTo(JUMP_INDEX.limits));
 themeBtn.addEventListener("click", toggleTheme);
+detailsToggle.addEventListener("click", () => {
+  detailsOpen = !detailsOpen;
+  applyDetailsState();
+});
 
 document.addEventListener("keydown", (e) => {
   if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
